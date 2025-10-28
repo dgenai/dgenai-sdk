@@ -11,7 +11,7 @@ import axios from "axios";
 import { withPaymentInterceptor, decodeXPaymentResponse } from "x402-axios";
 
 /**
- * Events for both askasync and streaming
+ * Interface describing events emitted by streaming endpoints.
  */
 export interface StreamEvents {
   message: (text: string) => void;
@@ -21,7 +21,9 @@ export interface StreamEvents {
   error: (err: unknown) => void;
 }
 
-/** Lightweight emitter with typed events */
+/**
+ * Custom event emitter for agent streaming responses.
+ */
 export class AskAsyncEmitter extends EventEmitter {
   on<U extends keyof StreamEvents>(event: U, listener: StreamEvents[U]): this {
     return super.on(event, listener);
@@ -29,113 +31,166 @@ export class AskAsyncEmitter extends EventEmitter {
 }
 
 /**
- * Public API client — covers agents + streaming endpoints.
- * Integrates x402 payment interceptor for 402 handling.
+ * Public API client integrating x402-axios for payment handling.
+ * - Displays all intercepted headers and responses (including x402 flow)
+ * - Pretty-prints both headers and response bodies
  */
 export class PublicApiClient {
   private api: any;
+  private debug: boolean;
 
   constructor(
     private readonly http: HttpClient,
     private readonly signer?: any,
-    private readonly network?: string
+    private readonly network?: string,
+    debugMode = false
   ) {
-    const baseURL = (this as any).http["baseUrl"];
-    const instance = axios.create({ baseURL, timeout: 20000 });
+    this.debug = debugMode || process.env.DEBUG_X402 === "true";
 
-    this.api = signer ? withPaymentInterceptor(instance, signer) : instance;
+    const baseAxios =
+      (http as any).axiosInstance ||
+      (http as any).axios ||
+      axios.create({ baseURL: (http as any).baseUrl });
 
-    // Decode 402 headers if present
-    this.api.interceptors.response.use(
-      (response: any) => {
-        const hdr =
-          response.headers["x-payment-response"] ||
-          response.headers["X-Payment-Response"];
-        if (hdr) {
-          try {
-            const decoded = decodeXPaymentResponse(hdr);
-            console.log("Decoded x-payment-response:", decoded);
-          } catch (e: unknown) {
-            if (e instanceof Error)
-              console.warn("Failed to decode x-payment-response:", e.message);
-          }
-        }
-        return response;
-      },
-      (error: any) => {
-        if (error.response) {
-          const hdr =
-            error.response.headers["x-payment-response"] ||
-            error.response.headers["X-Payment-Response"];
-          if (hdr) {
-            try {
-              console.log(
-                "Decoded x-payment-response (error):",
-                decodeXPaymentResponse(hdr)
-              );
-            } catch (e: unknown) {
-              if (e instanceof Error)
-                console.warn(
-                  "Failed to decode x-payment-response:",
-                  e.message
-                );
-            }
-          }
-        }
-        return Promise.reject(error);
+    this.api = signer ? withPaymentInterceptor(baseAxios, signer) : baseAxios;
+
+    if (this.debug) {
+      this.logInfo("Initializing PublicApiClient...");
+      this.logInfo(`Signer: ${signer ? "attached" : "none"}`);
+      this.logInfo(`Base URL: ${this.api.defaults?.baseURL}`);
+    }
+
+    // Intercept *all* responses and display headers + data
+// Intercept responses (including x402 flows)
+// Intercept responses (including x402 flows)
+this.api.interceptors.response.use(
+  (response: any) => {
+    const hdr =
+      response.headers["x-payment-response"] ||
+      response.headers["X-Payment-Response"];
+    if (hdr) {
+      try {
+        const decoded = JSON.parse(hdr);
+        const payerShort =
+          decoded.payer?.slice(0, 6) + "..." + decoded.payer?.slice(-4);
+        const signature = decoded.signature || decoded.transaction || "unknown";
+        const network = decoded.network || "unknown";
+
+        console.log(
+          `\x1b[32m[${this.timestamp()}] [x402]\x1b[0m payment confirmed — network: ${network}`
+        );
+        console.log(
+          `\x1b[90m  payer:\x1b[0m ${decoded.payer}\n\x1b[90m  signature:\x1b[0m ${signature}\n`
+        );
+      } catch (e: any) {
+        this.logWarn("Failed to parse x-payment-response:", e.message);
       }
-    );
+    }
+    return response;
+  },
+  (error: any) => {
+    const hdr =
+      error?.response?.headers?.["x-payment-response"] ||
+      error?.response?.headers?.["X-Payment-Response"];
+    if (hdr) {
+      try {
+        const decoded = JSON.parse(hdr);
+        const payerShort =
+          decoded.payer?.slice(0, 6) + "..." + decoded.payer?.slice(-4);
+        const signature = decoded.signature || decoded.transaction || "unknown";
+        const network = decoded.network || "unknown";
+
+        console.log(
+          `\x1b[31m[${this.timestamp()}] [x402-error]\x1b[0m payment failed — network: ${network}`
+        );
+        console.log(
+          `\x1b[90m  payer:\x1b[0m ${decoded.payer}\n\x1b[90m  signature:\x1b[0m ${signature}\n`
+        );
+      } catch (e: any) {
+        this.logWarn("Failed to parse x-payment-response:", e.message);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+
   }
 
-  /** GET /api/Public/agents */
+  /** ============================ UTILITIES ============================ **/
+
+  private timestamp() {
+    return new Date().toISOString().split("T")[1].replace("Z", "");
+  }
+
+  private logInfo(...args: any[]) {
+    console.log(`\x1b[36m[${this.timestamp()}] [INFO]\x1b[0m`, ...args);
+  }
+
+  private logWarn(...args: any[]) {
+    console.warn(`\x1b[33m[${this.timestamp()}] [WARN]\x1b[0m`, ...args);
+  }
+
+  private logError(...args: any[]) {
+    console.error(`\x1b[31m[${this.timestamp()}] [ERROR]\x1b[0m`, ...args);
+  }
+
+  /** ============================ METHODS ============================ **/
+
   async listAgents(): Promise<AgentListResponse> {
+    if (this.debug) this.logInfo("Fetching public agent list...");
     return this.http.get<AgentListResponse>("/api/Public/agents");
   }
 
-  /**
-   * POST /api/Public/agents/{agentId}/askasync — emits {status, message, done, error}.
-   */
   askAgentAsyncStream(agentId: string, body: Ask): AskAsyncEmitter {
     if (!body.input || !body.userName)
-      throw new Error("Missing required fields 'input' and 'userName' in Ask.");
+      throw new Error("Missing required fields: 'input' and 'userName'.");
 
     const emitter = new AskAsyncEmitter();
 
     (async () => {
       try {
+        if (this.debug) this.logInfo(`→ Sending async request to agent: ${agentId}`);
+
         const res = await this.api.post(
           `/api/Public/agents/${encodeURIComponent(agentId)}/askasync`,
-          { ...body, agentId },
-          { responseType: "text" }
+          { ...body, agentId }
         );
 
-        const lines = res.data
-          .toString()
-          .split(/\n+/)
-          .map((l: string) => l.trim())
-          .filter(Boolean);
+        if (!res?.data) {
+          emitter.emit("error", "Empty or undefined API response");
+          return;
+        }
+
+        const raw = res.data.toString().trim();
+        const lines = raw.split(/\n+/).map((l: string) => l.trim()).filter(Boolean);
 
         for (const line of lines) {
           try {
             const evt = JSON.parse(line.replace(/^data:\s*/, ""));
             switch (evt.ResponseType) {
               case 0:
+                process.stdout.write(evt.Value ?? "");
                 emitter.emit("message", evt.Value ?? "");
                 break;
               case 2:
+                console.error(`\n\x1b[33m[status]\x1b[0m ${evt.Value}`);
                 emitter.emit("status", evt.Value ?? "");
                 break;
               case 8:
+                console.log("\n\x1b[32m[done]\x1b[0m");
                 emitter.emit("done");
                 return;
             }
           } catch {
-            // ignore malformed lines
+            if (this.debug)
+              this.logWarn("[askAgentAsyncStream] Failed to parse line:", line);
           }
         }
 
         emitter.emit("done");
       } catch (err: unknown) {
+        this.logError("askAgentAsyncStream failed:", err);
         emitter.emit("error", err instanceof Error ? err.message : String(err));
       }
     })();
@@ -143,15 +198,13 @@ export class PublicApiClient {
     return emitter;
   }
 
-  /**
-   * POST /api/Public/askstreaming — emits {status, meta, message, done, error}.
-   * Compatible with Axios (Node.js stream) + x402 payments.
-   */
   askStreamingEmitter(body: Ask): EventEmitter {
     const emitter = new AskAsyncEmitter();
 
     (async () => {
       try {
+        if (this.debug) this.logInfo("→ Opening streaming connection...");
+
         const res = await this.api.post("/api/Public/askstreaming", body, {
           responseType: "stream",
           headers: {
@@ -179,26 +232,37 @@ export class PublicApiClient {
               const evt = JSON.parse(jsonStr);
               switch (evt.ResponseType) {
                 case 0:
+                  process.stdout.write(evt.Value ?? "");
                   emitter.emit("message", evt.Value ?? "");
                   break;
                 case 2:
+                  console.error(`\n\x1b[33m[status]\x1b[0m ${evt.Value}`);
                   emitter.emit("status", evt.Value ?? "");
                   break;
                 case 11:
-                  emitter.emit("meta", JSON.parse(evt.Value));
+                  const meta = JSON.parse(evt.Value);
+                  console.error(
+                    `\n\x1b[35m[meta]\x1b[0m ${
+                      meta?.DisplayName || meta?.Name || "Unknown Agent"
+                    }`
+                  );
+                  emitter.emit("meta", meta);
                   break;
                 case 8:
+                  console.log("\n\x1b[32m[done]\x1b[0m");
                   emitter.emit("done");
                   break;
               }
             } catch {
-              // ignore malformed chunks
+              if (this.debug)
+                this.logWarn("[askStreamingEmitter] Failed to parse:", line);
             }
           }
         }
 
         emitter.emit("done");
       } catch (err: unknown) {
+        this.logError("askStreamingEmitter failed:", err);
         emitter.emit("error", err instanceof Error ? err.message : String(err));
       }
     })();
@@ -206,17 +270,19 @@ export class PublicApiClient {
     return emitter;
   }
 
-  /** Fallback methods for compatibility */
   async askStreamingRaw(body: Ask): Promise<any> {
+    if (this.debug) this.logInfo("Sending raw streaming request...");
     return this.api.post("/api/Public/askstreaming", body, { responseType: "text" });
   }
 
   async askStreaming(body: Ask, onChunk: TextChunkHandler): Promise<void> {
+    if (this.debug) this.logInfo("Processing text stream by chunks...");
     const res = await this.askStreamingRaw(body);
     await readTextStream(res, onChunk);
   }
 
   async *askStreamingIter(body: Ask): AsyncGenerator<string, void, unknown> {
+    if (this.debug) this.logInfo("Iterating over streaming responses...");
     const res = await this.askStreamingRaw(body);
     yield* iterateTextStream(res);
   }

@@ -11,6 +11,7 @@ export interface Ask {
   agentId?: string;
   messageType?: string;
   variables?: StringStringKeyValuePair[];
+  feePayer: string;
 }
 
 export interface ChatRequest {
