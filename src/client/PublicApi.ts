@@ -170,15 +170,17 @@ this.api.interceptors.response.use(
             const evt = JSON.parse(line.replace(/^data:\s*/, ""));
             switch (evt.ResponseType) {
               case 0:
-                process.stdout.write(evt.Value ?? "");
+
+                if (typeof process !== "undefined" && process.stdout) {
+                  process.stdout.write(evt.Value);
+                }
+                
                 emitter.emit("message", evt.Value ?? "");
                 break;
               case 2:
-                console.error(`\n\x1b[33m[status]\x1b[0m ${evt.Value}`);
                 emitter.emit("status", evt.Value ?? "");
                 break;
               case 8:
-                console.log("\n\x1b[32m[done]\x1b[0m");
                 emitter.emit("done");
                 return;
             }
@@ -232,20 +234,14 @@ this.api.interceptors.response.use(
               const evt = JSON.parse(jsonStr);
               switch (evt.ResponseType) {
                 case 0:
-                  process.stdout.write(evt.Value ?? "");
                   emitter.emit("message", evt.Value ?? "");
                   break;
                 case 2:
-                  console.error(`\n\x1b[33m[status]\x1b[0m ${evt.Value}`);
                   emitter.emit("status", evt.Value ?? "");
                   break;
                 case 11:
                   const meta = JSON.parse(evt.Value);
-                  console.error(
-                    `\n\x1b[35m[meta]\x1b[0m ${
-                      meta?.DisplayName || meta?.Name || "Unknown Agent"
-                    }`
-                  );
+                
                   emitter.emit("meta", meta);
                   break;
                 case 8:

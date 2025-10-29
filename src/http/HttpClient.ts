@@ -14,18 +14,26 @@ export class HttpClient {
   private readonly fetchImpl: typeof fetch;
 
   constructor(opts: SDKOptions = { baseUrl: "https://api.dgenai.io" }) {
-    // Force default base URL to dgenai.io unless explicitly overridden
+    // Force default base URL to dgenai.io unless explicitly overridden (dev purpose)
     this.baseUrl = (opts.baseUrl ?? "https://api.dgenai.io").replace(/\/$/, "");
     this.apiKey = opts.apiKey;
     this.timeoutMs = opts.timeoutMs ?? 30_000;
     this.retries = opts.retries ?? 2;
-    this.fetchImpl = opts.fetch ?? globalThis.fetch;
 
-    if (!this.fetchImpl) {
+    // Ensure fetch is bound to the right context depending on environment
+    const fetchCandidate =
+      opts.fetch ??
+      (typeof window !== "undefined"
+        ? window.fetch.bind(window)
+        : globalThis.fetch?.bind(globalThis));
+
+    if (!fetchCandidate) {
       throw new Error(
         "No fetch implementation available. Provide one in SDKOptions.fetch for Node < 18."
       );
     }
+
+    this.fetchImpl = fetchCandidate;
   }
 
   private headers(extra?: HeadersInit): HeadersInit {
