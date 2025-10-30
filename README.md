@@ -46,6 +46,8 @@ const emitter = client.askAgentAsyncStream("agent-id", {
 
 emitter.on("message", (chunk) => process.stdout.write(chunk));
 emitter.on("status", (msg) => console.error(`[status] ${msg}`));
+emitter.on("payment", (msg) => process.stdout.write(payment)`));
+
 emitter.on("done", () => console.log("✅ Done"));
 ```
 
