@@ -17,6 +17,7 @@ export interface StreamEvents {
   message: (text: string) => void;
   status: (text: string) => void;
   meta: (data: any) => void;
+  payment: (payment: any) => void;
   done: () => void;
   error: (err: unknown) => void;
 }
@@ -60,32 +61,9 @@ export class PublicApiClient {
       this.logInfo(`Base URL: ${this.api.defaults?.baseURL}`);
     }
 
-    // Intercept *all* responses and display headers + data
-// Intercept responses (including x402 flows)
-// Intercept responses (including x402 flows)
+
 this.api.interceptors.response.use(
   (response: any) => {
-    const hdr =
-      response.headers["x-payment-response"] ||
-      response.headers["X-Payment-Response"];
-    if (hdr) {
-      try {
-        const decoded = JSON.parse(hdr);
-        const payerShort =
-          decoded.payer?.slice(0, 6) + "..." + decoded.payer?.slice(-4);
-        const signature = decoded.signature || decoded.transaction || "unknown";
-        const network = decoded.network || "unknown";
-
-        console.log(
-          `\x1b[32m[${this.timestamp()}] [x402]\x1b[0m payment confirmed — network: ${network}`
-        );
-        console.log(
-          `\x1b[90m  payer:\x1b[0m ${decoded.payer}\n\x1b[90m  signature:\x1b[0m ${signature}\n`
-        );
-      } catch (e: any) {
-        this.logWarn("Failed to parse x-payment-response:", e.message);
-      }
-    }
     return response;
   },
   (error: any) => {
@@ -95,8 +73,6 @@ this.api.interceptors.response.use(
     if (hdr) {
       try {
         const decoded = JSON.parse(hdr);
-        const payerShort =
-          decoded.payer?.slice(0, 6) + "..." + decoded.payer?.slice(-4);
         const signature = decoded.signature || decoded.transaction || "unknown";
         const network = decoded.network || "unknown";
 
@@ -169,16 +145,14 @@ this.api.interceptors.response.use(
           try {
             const evt = JSON.parse(line.replace(/^data:\s*/, ""));
             switch (evt.ResponseType) {
-              case 0:
-
-                if (typeof process !== "undefined" && process.stdout) {
-                  process.stdout.write(evt.Value);
-                }
-                
+              case 0:                
                 emitter.emit("message", evt.Value ?? "");
                 break;
               case 2:
                 emitter.emit("status", evt.Value ?? "");
+                break;
+              case 14:
+                emitter.emit("payment", evt.Value ?? "");
                 break;
               case 8:
                 emitter.emit("done");
@@ -247,6 +221,9 @@ this.api.interceptors.response.use(
                 case 8:
                   console.log("\n\x1b[32m[done]\x1b[0m");
                   emitter.emit("done");
+                  break;
+                case 14:
+                  emitter.emit("payment", evt.Value ?? "");
                   break;
               }
             } catch {

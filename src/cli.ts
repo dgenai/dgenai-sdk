@@ -139,6 +139,7 @@ program
     emitter
       .on("status", (msg) => console.error(`\x1b[33m[status]\x1b[0m ${msg}`))
       .on("message", (chunk) => process.stdout.write(chunk))
+      .on("payment", (payment) => process.stdout.write(`\x1b[32m[payment]\x1b[0m ${payment}\n`))
       .on("done", () => {
         process.stdout.write("\n\x1b[32mDone\x1b[0m\n");
         if (opts.debug) log.info("Async stream completed.");
