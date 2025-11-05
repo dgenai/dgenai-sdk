@@ -36,6 +36,20 @@ export class HttpClient {
     this.fetchImpl = fetchCandidate;
   }
 
+  /** Public getters to avoid (http as any) hacks */
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
+  getApiKey(): string | undefined {
+    return this.apiKey;
+  }
+  getTimeoutMs(): number {
+    return this.timeoutMs;
+  }
+  getRetries(): number {
+    return this.retries;
+  }
+
   private headers(extra?: HeadersInit): HeadersInit {
     return {
       "Content-Type": "application/json",
