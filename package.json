@@ -1,11 +1,11 @@
 {
   "name": "dgenai-sdk",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "description": "Official TypeScript SDK for dgenai Public API",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "dgenai": "./dist/cli.js"
+    "dgenai": "./dist/a2a-cli.js"
   },
   "exports": {
     ".": {

@@ -1,137 +1,127 @@
-# dgenai-sdk
+# dgenai A2A Terminal CLI
 
-**Official TypeScript SDK for the DGENAI Public API**
-
-The `dgenai-sdk` provides a modern, fully typed interface to interact with the [DGENAI Public API](https://api.dgenai.io).  
-It includes native support for **x402 micropayments**, **agent streaming**, and **event-based message handling** — making it ideal for developers building integrations, bots, or advanced AI tools on top of DGENAI.
+A TypeScript-based **interactive terminal client** for communicating with AI agents via the [dgenai.io](https://api.dgenai.io) A2A (Agent-to-Agent) protocol.  
+This CLI allows you to send and stream messages to agents directly from the terminal, supporting task cancellation and live status updates.
 
 ---
 
-## 🚀 Features
+## 📦 Requirements
 
-- Fully typed TypeScript SDK  
-- Built-in **x402** payment interceptor  
-- Supports **real-time streaming** (async and routed modes)  
-- Integrated **CLI tool** (`dgenai`)  
-- Debug-friendly with colored logs  
-- Lightweight, dependency-free core  
+- Node.js >= 18  
+- npm or yarn  
+- TypeScript and ts-node installed globally or locally  
+  ```bash
+  npm install -g typescript ts-node
+  ```
 
 ---
 
-## 📦 Installation
+## 🔧 Installation
+
+1. **Clone this repository**
 
 ```bash
-npm install dgenai-sdk
+git clone https://github.com/dgenai/a2a-terminal.git
+cd a2a-terminal
+```
+
+2. **Install dependencies**
+
+```bash
+npm install
 # or
-yarn add dgenai-sdk
+yarn install
 ```
 
 ---
 
-## 🧠 Quick Start (SDK)
+## ▶️ Usage
 
-```typescript
-import { PublicApiClient, HttpClient } from "dgenai-sdk";
-import { createSigner } from "x402-axios";
+Run the CLI using ts-node:
 
+```bash
+ts-node a2a-terminal.ts <agent-card-url>
+```
 
-signer = await createSigner(NETWORK, PRIVATE_KEY);
-const client = new PublicApiClient(http, signer, NETWORK);
+Example:
 
-// Ask an agent asynchronously (event-based)
-const emitter = client.askAgentAsyncStream("agent-id", {
-  input: "Explain Solana smart contracts",
-  userName: "DeveloperX",
-});
+```bash
+ts-node a2a-terminal.ts https://api.dgenai.io/agents/example-agent/<id>/.well-known/agent-card.json
 
-emitter.on("message", (chunk) => process.stdout.write(chunk));
-emitter.on("status", (msg) => console.error(`[status] ${msg}`));
-emitter.on("payment", (msg) => process.stdout.write(payment)`));
+Once connected, you can type messages directly into the terminal.
 
-emitter.on("done", () => console.log("✅ Done"));
+### Commands available:
+
+- Type any text → sends it as a message to the agent.
+- `/cancel` → cancels the current running task (if any).
+- `Ctrl+C` or `Ctrl+D` → exits the terminal.
+
+---
+
+## 🧠 How It Works
+
+- Uses `@a2a-js/sdk` to connect to an agent from its **Agent Card URL**.  
+- Streams agent responses in real time.  
+- Displays task status updates (e.g., `in-progress`, `completed`, etc.).  
+- Supports task cancellation via the `/cancel` command.  
+
+Example interaction:
+
+```
+[INFO] Initializing A2A client...
+[INFO] Client ready. Type your message or /cancel to stop current task.
+> hello agent
+[INFO] Streaming message: "hello agent"
+The agent replies in real-time...
+[STATUS] in-progress generating
+[STATUS] completed
+[INFO] Stream ended.
 ```
 
 ---
 
-## 💻 CLI Usage
+## ⚙️ Code Overview
 
-Once installed globally or via `npx`, you can use the built-in CLI:
-
-```bash
-npx dgenai agents-list
-```
-
-### Commands
-
-#### `agents-list`
-List all available public agents.
-
-```bash
-dgenai agents-list
-```
-
-#### `ask-async`
-Send a message to a specific agent and stream results in real-time.
-
-```bash
-dgenai ask-async \
-  --agent "agent-id" \
-  --input "Generate a Solidity smart contract" \
-  --user "DeveloperX"
-```
-
-#### `ask-routedasync`
-Ask via the global routed endpoint (auto-selects the right agent).
-
-```bash
-dgenai ask-routedasync \
-  --input "Summarize today's crypto trends" \
-  --user "AnalystY"
-```
-
-Each stream emits:
-- `status` → progress updates  
-- `meta` → metadata (agent name, type, etc.)  
-- `message` → main text output  
-- `done` → end of stream  
+- `a2a-terminal.ts` — main entry point.  
+- Uses:
+  - `A2AClient` from `@a2a-js/sdk/client`  
+  - `uuid` for message IDs  
+  - `readline` for terminal input/output  
+- Each message is sent as a structured `MessageSendParams` object with text and metadata.  
+- Active task IDs are tracked to enable `/cancel`.
 
 ---
 
-## 🔐 Payments (x402 Integration)
+## 💡 Example Metadata Sent
 
-If your requests require payment, simply set a signer via environment variables:
-
-```bash
-PRIVATE_KEY=your_private_key
-NETWORK=solana
+```json
+{
+  "userWalletPubKey": "AYJk5Dzvu9MpSqmb6gX99jovcrr6Ss728B74qmErry6V",
+  "isvirtualMode": false
+}
 ```
 
-The SDK automatically uses [`x402-axios`](https://www.npmjs.com/package/x402-axios) to handle signed micropayments and confirmation headers.
+You can adapt this to your environment as needed per agent requirements
 
 ---
 
-## ⚙️ Debugging
+## 🧩 Development
 
-Enable debug mode via environment variable or CLI flag:
+To build and run locally:
 
 ```bash
-DEBUG_X402=true dgenai ask-async ...
+npm run build
+node dist/a2a-terminal.js <agent-card-url>
 ```
 
-This logs:
-- All outgoing requests  
-- x402 payment responses  
-- Streaming event data  
+To run directly in dev mode:
+
+```bash
+ts-node a2a-terminal.ts <agent-card-url>
+```
 
 ---
 
-## 🧩 TypeScript Support
+## 🧾 License
 
-The SDK ships with full typings and `index.d.ts` definitions.  
-You can directly import and use types like `Ask`, `AgentListResponse`, and `TextChunkHandler`.
-
----
-
-## 🪪 License
-
-MIT © DGENAI
+MIT License © 2025 — DGENAI Project

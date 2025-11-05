@@ -6,9 +6,15 @@ import { Readable } from "node:stream";
  * Fully compatible with A2AClient.fromCardUrl(fetchImpl).
  */
 export function createX402Fetch(signer: any): typeof fetch {
+
+    let fetchCandidate = (typeof window !== "undefined"
+        ? window.fetch.bind(window)
+        : globalThis.fetch?.bind(globalThis));
+
+
   const fetchWithPayment = signer
-    ? wrapFetchWithPayment(globalThis.fetch, signer)
-    : globalThis.fetch;
+    ? wrapFetchWithPayment(fetchCandidate, signer)
+    : fetchCandidate;
 
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = typeof input === "string" ? input : input.toString();
