@@ -1,6 +1,6 @@
 {
   "name": "dgenai-sdk",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Official TypeScript SDK for dgenai Public API",
   "license": "MIT",
   "type": "module",
