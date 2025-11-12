@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { EventEmitter } from "events";
 import type { MessageSendParams } from "@a2a-js/sdk";
 import { wrapFetchWithPayment } from "x402-fetch";
+import { extractText } from "../utils/extractText.js";
 
 /**
  * EventEmitter-based wrapper for streaming A2A messages.
@@ -93,7 +94,7 @@ export class A2AService {
               emitter.emit(
                 "status",
                 `${chunk.status.state}${
-                  chunk.status.message ? " " + chunk.status.message : ""
+                  chunk.status.message ? " " + extractText(chunk.status.message) : ""
                 }`
               );
               break;

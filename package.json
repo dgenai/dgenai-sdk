@@ -1,6 +1,6 @@
 {
   "name": "dgenai-sdk",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Official TypeScript SDK for dgenai Public API",
   "license": "MIT",
   "type": "module",
@@ -43,6 +43,7 @@
     "commander": "^12.1.0",
     "dotenv": "^17.2.3",
     "eventsource-parser": "^3.0.6",
+    "openai": "^6.8.1",
     "uuid": "^13.0.0",
     "x402-axios": "^0.6.6",
     "x402-fetch": "^0.7.0"

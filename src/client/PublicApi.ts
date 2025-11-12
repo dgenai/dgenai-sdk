@@ -1,6 +1,6 @@
+import { AgentCard } from "@a2a-js/sdk";
 import { HttpClient } from "../http/HttpClient.js";
 import { A2AService, A2AEmitter } from "../services/a2aService.js";
-import type { AgentListResponse } from "../types/agents.types.js";
 
 /**
  * Public API client using fetch (x402-compatible).
@@ -20,8 +20,8 @@ export class PublicApiClient {
   }
 
   /** Retrieve all available agents */
-  async listAgents(): Promise<AgentListResponse> {
-    return this.http.get<AgentListResponse>("/api/Public/agents");
+  async listAgents(): Promise<AgentCard[]> {
+    return this.http.get<AgentCard[]>("/a2a/discover");
   }
 
   /** Send a single A2A message (non-streaming) */

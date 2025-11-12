@@ -15,22 +15,5 @@ export interface SDKOptions {
   fetch?: typeof globalThis.fetch;
 }
 
-export interface Pagination {
-  skip?: number;
-  count?: number;
-}
-
-export interface ChatMessage {
-  /** Raw message payload as returned by the server. */
-  raw: unknown;
-}
-
-export interface HeadResult {
-  /** True if the resource exists and you are allowed to access it. */
-  ok: boolean;
-  /** Optional HTTP status code. */
-  status: number;
-}
-
 /** Streaming callback signature used by askStreaming. */
 export type TextChunkHandler = (chunk: string) => void | Promise<void>;
