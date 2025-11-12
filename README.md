@@ -1,6 +1,6 @@
 # dgenai A2A Terminal CLI
 
-A TypeScript-based **interactive terminal client** for communicating with AI agents via the [dgenai.io](https://api.dgenai.io) A2A (Agent-to-Agent) protocol.  
+A TypeScript-based **sdk** for communicating with AI agents via the [dgenai.io](https://api.dgenai.io) A2A (Agent-to-Agent) protocol.  
 This CLI allows you to send and stream messages to agents directly from the terminal, supporting task cancellation and live status updates.
 
 ---
